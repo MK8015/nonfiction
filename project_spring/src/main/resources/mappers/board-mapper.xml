@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mappers.board">
+	<!-- 전체 글 리스트 보기 -->
+	<select id="listArticle" resultType="BoardVo">
+		select * from 
+    		(select rownum rnum, a.* from 
+        		(select * from t_board
+          		 order by re_group desc, re_seq asc) a)
+		where rnum between #{startRow} and #{endRow}
+	</select>
+	
+	<!-- 공지 글 리스트 보기 -->
+	<select id="listNotify" resultType="BoardVo">
+		select * from t_board
+		where notify = 'Y'
+	</select>
+	
+	<!-- 글 번호 선택 -->
+	<select id="selectByBno" resultType="BoardVo">
+		select * from t_board
+		where bno = #{bno}
+	</select>
+	
+	<!-- 비밀번호 찾기 -->
+	<select id="checkPassword" resultType="int">
+		select count(*) from t_board
+		where bno = #{bno}
+		and password = #{password}
+	</select>
+	
+	<!-- 로그인한 사람이 원글 글쓴이가 맞나 체크 -->
+	<select id="checkOriginalWriter" resultType="BoardVo">
+		select * from t_board
+    	where (select writer from t_board
+            	where bno = #{re_group}) = #{member_id}
+            	and bno = #{bno}
+	</select>
+	
+	<!-- 조회수 증가 -->
+	<update id="updateViewcnt">
+		update t_board set
+			viewcnt = viewcnt + 1
+		where bno = #{bno}
+	</update>
+	
+	<!-- bno.nextval -->
+	<select id="getNextVal" resultType="int">
+		select seq_board_bno.nextval from dual
+	</select>
+	
+	<!-- 글 등록 -->
+	<insert id="insertArticle">
+		<choose>
+			<when test='writer eq "admin"'>
+			insert into t_board
+				(bno, title, content, pic, writer, re_group, password, notify)
+			values (#{bno}, #{title}, #{content}, #{pic, jdbcType=VARCHAR}, 
+					#{writer}, #{bno}, #{password}, #{notify})
+			</when>
+			<otherwise>
+			insert into t_board
+				(bno, title, content, pic, writer, re_group, password)
+			values (#{bno}, #{title}, #{content}, #{pic, jdbcType=VARCHAR}, 
+					#{writer}, #{bno}, #{password})
+			</otherwise>
+		</choose>
+	</insert>
+	
+	<!-- 답글 등록 -->
+	<insert id="insertReply">
+		insert into t_board
+			(bno, title, content, writer, re_group, re_seq, re_level, password)
+		values
+			(seq_board_bno.nextval, #{title}, #{content}, #{writer},
+			 #{re_group}, #{re_seq} + 1, #{re_level} + 1, #{password})
+	</insert>
+
+	<!-- 출력 순서 업데이트 -->
+	<update id="updateReSeq">
+		<![CDATA[ 
+		update t_board set
+			re_seq = re_seq + 1
+		where re_group = #{re_group}
+		and re_seq > #{re_seq}
+		]]>
+	</update>
+	
+	<!-- 카운트 얻어오기 -->
+	<select id="getCount" resultType="int">
+ 		select count(*) from t_board
+ 	</select>
+	
+	<!-- 글 수정 -->
+	<update id="updateArticle">
+		<choose>
+			<when test='writer eq "admin"'>
+			update t_board set
+			title = #{title},
+			content = #{content},
+			pic = #{pic, jdbcType=VARCHAR},
+			regdate = sysdate,
+			re_group = #{re_group}, 
+			password = #{password},
+			notify = #{notify}
+			where bno = #{bno}
+			</when>
+			<otherwise>
+			update t_board set
+			title = #{title},
+			content = #{content},
+			pic = #{pic, jdbcType=VARCHAR},
+			regdate = sysdate,
+			re_group = #{re_group}, 
+			password = #{password}
+			where bno = #{bno}
+			</otherwise>
+		</choose>
+	</update>
+	
+	<!-- 글 삭제 -->
+	<delete id="deleteArticle">
+		delete from t_board
+		where bno = #{bno}
+	</delete>
+</mapper>
